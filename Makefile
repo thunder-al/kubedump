@@ -1,7 +1,12 @@
-run:
-	cargo run
-
-release:
-	cargo build --release
-	upx -9 ./target/release/kubedump ./target/release/kubedump.exe || true
-	cp ./target/release/kubedump ./kubedump || cp ./target/release/kubedump.exe ./kubedump.exe
+build-release:
+	rm -rf ./dist
+	mkdir ./dist
+	case "$$OSTYPE" in \
+	  msys|cygwin|win32) \
+		go build -ldflags "-s -w" -o ./dist/kubedump.exe; \
+		upx ./dist/kubedump.exe || true; \
+		;; \
+	  *) \
+		go build -ldflags "-s -w" -o ./dist/kubedump; \
+		;; \
+	esac
