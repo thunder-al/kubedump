@@ -43,7 +43,7 @@ func Dump(cfg *Config) error {
 		return err
 	})
 
-	resourceChannel := make(chan ResourceAndGroup)
+	resourceChannel := make(chan ResourceAndGroup, 15)
 
 	g.Go(func() error {
 		defer close(resourceChannel)
@@ -178,7 +178,7 @@ func removeIllegalFileChars(fileName string) string {
 
 func serializeObject(cfg *Config, res ResourceAndGroup) ([]byte, error) {
 
-	obj := *res.resource
+	obj := res.resource
 
 	obj.SetManagedFields(nil)
 

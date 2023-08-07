@@ -27,8 +27,8 @@ type ResourceGroup struct {
 }
 
 type ResourceAndGroup struct {
-	group    *ResourceGroup
-	resource *unstructured.Unstructured
+	group    ResourceGroup
+	resource unstructured.Unstructured
 }
 
 func DiscoverResources(ctx context.Context, res ResourceGroup, ch chan<- ResourceAndGroup) error {
@@ -53,7 +53,7 @@ func DiscoverResources(ctx context.Context, res ResourceGroup, ch chan<- Resourc
 	}
 
 	for _, obj := range list.Items {
-		ch <- ResourceAndGroup{&res, &obj}
+		ch <- ResourceAndGroup{res, obj}
 	}
 
 	return nil
