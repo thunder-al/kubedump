@@ -88,7 +88,7 @@ func Download(cfg *CommandArgs) error {
 		g.Go(func() error {
 			payload := pool.Process(v)
 			if payload != nil {
-				return payload.(error)
+				log.Printf("Fail to download %s: %s", v.pv.Name, payload.(error))
 			}
 
 			return nil
