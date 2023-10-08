@@ -13,6 +13,7 @@ type CommandArgs struct {
 	ExcludeNamespaces []string
 	Resources         []string
 	DryRun            bool
+	IgnoreUnbound     bool
 	Threads           int
 }
 
@@ -46,6 +47,10 @@ func GetCliCommand() cli.Command {
 				Value: 3,
 			},
 			cli.BoolFlag{
+				Name:  "ignore-unbound",
+				Usage: "Ignore unbound volumes",
+			},
+			cli.BoolFlag{
 				Name:  "dry-run",
 				Usage: "Only discover volumes and print them",
 			},
@@ -59,6 +64,7 @@ func GetCliCommand() cli.Command {
 				ExcludeNamespaces: c.StringSlice("exclude-namespaces"),
 				Resources:         c.Args(),
 				Threads:           c.Int("threads"),
+				IgnoreUnbound:     c.Bool("ignore-unbound"),
 				DryRun:            c.Bool("dry-run"),
 			})
 		},

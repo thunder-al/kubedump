@@ -7,12 +7,14 @@ import (
 	"github.com/ThunderAl197/kubedump/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type VolumeDiscovery struct {
 	pv  *v1.PersistentVolume
 	pvc *v1.PersistentVolumeClaim
+	pa  *storagev1.VolumeAttachment
 	pod []v1.Pod
 	dp  []appsv1.Deployment
 	sts []appsv1.StatefulSet
@@ -22,6 +24,7 @@ type VolumeDiscovery struct {
 func DiscoverVolume(ctx context.Context, vol v1.PersistentVolume, cmd *CommandArgs) (*VolumeDiscovery, error) {
 	var (
 		err          error
+		attachment   *storagev1.VolumeAttachment
 		pods         []v1.Pod
 		deployments  []appsv1.Deployment
 		statefulsets []appsv1.StatefulSet
@@ -33,6 +36,24 @@ func DiscoverVolume(ctx context.Context, vol v1.PersistentVolume, cmd *CommandAr
 	}
 
 	if !k8s.IsIncluded(vol.Spec.ClaimRef.Namespace, cmd.OnlyNamespaces, cmd.ExcludeNamespaces) {
+		return nil, nil // skipped
+	}
+
+	attachments, err := k8s.KClient.StorageV1().
+		VolumeAttachments().
+		List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range attachments.Items {
+		if a.Spec.Source.PersistentVolumeName != nil && *a.Spec.Source.PersistentVolumeName == vol.Name {
+			attachment = &a
+			break
+		}
+	}
+
+	if attachment == nil && cmd.IgnoreUnbound {
 		return nil, nil // skipped
 	}
 
@@ -108,6 +129,7 @@ func DiscoverVolume(ctx context.Context, vol v1.PersistentVolume, cmd *CommandAr
 	return &VolumeDiscovery{
 		pv:  &vol,
 		pvc: pvc,
+		pa:  attachment,
 		pod: pods,
 		dp:  deployments,
 		sts: statefulsets,

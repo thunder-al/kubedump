@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ThunderAl197/kubedump/pkg/k8s"
 	v1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -64,29 +63,12 @@ func (d *Downloader) spawnPod(ctx context.Context, cfg *CommandArgs) (*v1.Pod, e
 	podAffinity := &v1.Affinity{}
 
 	if d.discovery.pv.Spec.NodeAffinity != nil {
+
 		podAffinity.NodeAffinity = &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: d.discovery.pv.Spec.NodeAffinity.Required,
 		}
-	} else {
-		attachments, err := k8s.KClient.StorageV1().
-			VolumeAttachments().
-			List(ctx, metav1.ListOptions{})
-		if err != nil {
-			return nil, err
-		}
 
-		var va *storagev1.VolumeAttachment
-
-		for _, a := range attachments.Items {
-			if a.Spec.Source.PersistentVolumeName != nil && *a.Spec.Source.PersistentVolumeName == d.discovery.pv.Name {
-				va = &a
-				break
-			}
-		}
-
-		if va == nil {
-			return nil, fmt.Errorf("volume attachment for pv %s not found", d.discovery.pv.Name)
-		}
+	} else if d.discovery.pa != nil && d.discovery.pa.Spec.NodeName != "" {
 
 		podAffinity.NodeAffinity = &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -96,13 +78,17 @@ func (d *Downloader) spawnPod(ctx context.Context, cfg *CommandArgs) (*v1.Pod, e
 							{
 								Key:      "metadata.name",
 								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{va.Spec.NodeName},
+								Values:   []string{d.discovery.pa.Spec.NodeName},
 							},
 						},
 					},
 				},
 			},
 		}
+
+	} else {
+
+		podAffinity = nil
 	}
 
 	gracePeriod := int64(0)
