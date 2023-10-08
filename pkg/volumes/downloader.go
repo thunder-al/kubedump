@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/ThunderAl197/kubedump/pkg/k8s"
-	"io"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -214,7 +213,7 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 
 	var (
 		err      error
-		command  = []string{"tar", "-czvf", "-", "-C", "/mnt/vol", "."}
+		command  = []string{"bash", "-c", "(tar -cf - -C /mnt/vol . | gzip -4cf) && sleep 5 || echo error >&2"}
 		destDir  = fmt.Sprintf("%s/volumes", cfg.OutputDir)
 		destFile = fmt.Sprintf("%s/%s.tar.gz", destDir, d.discovery.pv.Name)
 	)
@@ -275,7 +274,6 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 		SubResource("exec").
 		VersionedParams(
 			&v1.PodExecOptions{
-				// tar+gzip -> stdout
 				Command:   command,
 				Container: "kubedump",
 				Stdout:    true,
@@ -294,7 +292,7 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  nil,
 		Stdout: writer,
-		Stderr: io.Discard,
+		Stderr: os.Stderr,
 		Tty:    false,
 	})
 	if err != nil {
