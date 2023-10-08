@@ -2,6 +2,7 @@ package manifests
 
 import (
 	"context"
+	"github.com/ThunderAl197/kubedump/pkg/k8s"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 	"log"
@@ -11,24 +12,12 @@ import (
 	"strings"
 )
 
-type Config struct {
-	Kubeconfig        string
-	OutputDir         string
-	FileTemplate      string
-	OnlyNamespaces    []string
-	ExcludeNamespaces []string
-	NoNonNamespaced   bool
-	OnlyResources     []string
-	ExcludeResources  []string
-	DryRun            bool
-}
-
-func Dump(cfg *Config) error {
+func Dump(cfg *CommandArgs) error {
 	var err error
 
 	ctx := context.Background()
 
-	err = InitClient(cfg.Kubeconfig)
+	err = k8s.InitClient(cfg.Kubeconfig)
 	if err != nil {
 		return err
 	}
@@ -153,7 +142,7 @@ func Dump(cfg *Config) error {
 	return g.Wait()
 }
 
-func getResourceFilePath(cfg *Config, res ResourceAndGroup) string {
+func getResourceFilePath(cfg *CommandArgs, res ResourceAndGroup) string {
 	filePath := cfg.FileTemplate
 
 	namespace := res.resource.GetNamespace()
@@ -176,7 +165,7 @@ func removeIllegalFileChars(fileName string) string {
 	return regexp.MustCompile("[^A-Za-z0-9._-]").ReplaceAllString(fileName, "-")
 }
 
-func serializeObject(cfg *Config, res ResourceAndGroup) ([]byte, error) {
+func serializeObject(cfg *CommandArgs, res ResourceAndGroup) ([]byte, error) {
 
 	obj := res.resource
 

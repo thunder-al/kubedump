@@ -6,6 +6,18 @@ import (
 	"path"
 )
 
+type CommandArgs struct {
+	Kubeconfig        string
+	OutputDir         string
+	FileTemplate      string
+	OnlyNamespaces    []string
+	ExcludeNamespaces []string
+	NoNonNamespaced   bool
+	OnlyResources     []string
+	ExcludeResources  []string
+	DryRun            bool
+}
+
 func GetCliCommand() cli.Command {
 	return cli.Command{
 		Name:  "manifests",
@@ -56,7 +68,7 @@ func GetCliCommand() cli.Command {
 		Action: func(c *cli.Context) error {
 			var err error
 
-			err = Dump(&Config{
+			err = Dump(&CommandArgs{
 				Kubeconfig:        c.String("kubeconfig"),
 				OutputDir:         c.String("output"),
 				FileTemplate:      c.String("template"),

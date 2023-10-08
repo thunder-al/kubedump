@@ -2,21 +2,11 @@ package manifests
 
 import (
 	"context"
+	"github.com/ThunderAl197/kubedump/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"log"
-	"os"
-)
-
-var (
-	KConfig    *rest.Config
-	KClient    *kubernetes.Clientset
-	KDynClient *dynamic.DynamicClient
 )
 
 type ResourceGroup struct {
@@ -38,12 +28,12 @@ func DiscoverResources(ctx context.Context, res ResourceGroup, ch chan<- Resourc
 	)
 
 	if res.Namespaced {
-		list, err = KDynClient.
+		list, err = k8s.KDynClient.
 			Resource(schema.GroupVersionResource{Group: res.Group, Version: res.Version, Resource: res.Resource}).
 			Namespace("").
 			List(ctx, metav1.ListOptions{})
 	} else {
-		list, err = KDynClient.
+		list, err = k8s.KDynClient.
 			Resource(schema.GroupVersionResource{Group: res.Group, Version: res.Version, Resource: res.Resource}).
 			List(ctx, metav1.ListOptions{})
 	}
@@ -60,7 +50,7 @@ func DiscoverResources(ctx context.Context, res ResourceGroup, ch chan<- Resourc
 }
 
 func DiscoverGroups(ctx context.Context, ch chan<- ResourceGroup) error {
-	discovery := KClient.Discovery()
+	discovery := k8s.KClient.Discovery()
 	groupList, err := discovery.ServerGroups()
 	if err != nil {
 		return err
@@ -97,49 +87,4 @@ func DiscoverGroups(ctx context.Context, ch chan<- ResourceGroup) error {
 	}
 
 	return nil
-}
-
-func InitClient(kubeconfig string) error {
-	var err error
-
-	KConfig, err = buildConfig(kubeconfig)
-	if err != nil {
-		return err
-	}
-
-	KClient, err = buildClient(KConfig)
-	if err != nil {
-		return err
-	}
-
-	KDynClient, err = dynamic.NewForConfig(KConfig)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func buildClient(config *rest.Config) (*kubernetes.Clientset, error) {
-	clientset, err := kubernetes.NewForConfig(config)
-	return clientset, err
-}
-
-func buildConfig(kubeconfig string) (*rest.Config, error) {
-	if kubeconfig != "" {
-		if _, err := os.Stat(kubeconfig); err == nil {
-			cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-			if err != nil {
-				return nil, err
-			}
-			return cfg, nil
-		}
-	}
-
-	cfg, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
 }
