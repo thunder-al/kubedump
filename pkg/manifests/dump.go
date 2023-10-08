@@ -1,4 +1,4 @@
-package manifest_loader
+package manifests
 
 import (
 	"context"
