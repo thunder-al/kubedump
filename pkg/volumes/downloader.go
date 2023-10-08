@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ThunderAl197/kubedump/pkg/k8s"
+	"io"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -213,7 +214,7 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 
 	var (
 		err      error
-		command  = []string{"tar", "-czf-", "-C", "/mnt/vol", "."}
+		command  = []string{"tar", "-czvf", "-", "-C", "/mnt/vol", "."}
 		destDir  = fmt.Sprintf("%s/volumes", cfg.OutputDir)
 		destFile = fmt.Sprintf("%s/%s.tar.gz", destDir, d.discovery.pv.Name)
 	)
@@ -257,16 +258,10 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 	}
 
 	// create archive file
-	archiveFile, err := os.OpenFile(destFile, os.O_CREATE|os.O_WRONLY, 0600)
+	archiveFile, err := os.OpenFile(destFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
-	defer func(archiveFile *os.File) {
-		err := archiveFile.Close()
-		if err != nil {
-			log.Printf("Error closing archive file: %s\n", err)
-		}
-	}(archiveFile)
 
 	writer := bufio.NewWriter(archiveFile)
 
@@ -284,7 +279,7 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 				Command:   command,
 				Container: "kubedump",
 				Stdout:    true,
-				Stderr:    false,
+				Stderr:    true,
 				Stdin:     false,
 				TTY:       false,
 			},
@@ -299,11 +294,21 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  nil,
 		Stdout: writer,
-		Stderr: nil,
+		Stderr: io.Discard,
 		Tty:    false,
 	})
 	if err != nil {
 		return err
+	}
+
+	err = writer.Flush()
+	if err != nil {
+		return err
+	}
+
+	err = archiveFile.Close()
+	if err != nil {
+		log.Printf("Error closing archive file: %s\n", err)
 	}
 
 	return nil
