@@ -213,7 +213,7 @@ func (d *Downloader) downloadWithTar(ctx context.Context, pod *v1.Pod, cfg *Comm
 
 	var (
 		err      error
-		command  = []string{"bash", "-c", "(tar -cf - -C /mnt/vol . | gzip -4cf) && sleep 5 || echo error >&2"}
+		command  = []string{"bash", "-c", "((tar -cf - -C /mnt/vol .; dd if=/dev/zero of=/dev/stdout bs=1024 count=1024 status=none) | gzip -4cf) && sleep 5 || echo error >&2"}
 		destDir  = fmt.Sprintf("%s/volumes", cfg.OutputDir)
 		destFile = fmt.Sprintf("%s/%s.tar.gz", destDir, d.discovery.pv.Name)
 	)
